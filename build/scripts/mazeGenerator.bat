@@ -70,7 +70,7 @@ echo location of your Java installation. 1>&2
 :execute
 @rem Setup the command line
 
-set CLASSPATH=%APP_HOME%\lib\mazeGenerator-1.0-S.jar;%APP_HOME%\lib\javafx-fxml-21.0.2-win.jar;%APP_HOME%\lib\javafx-controls-21.0.2-win.jar;%APP_HOME%\lib\javafx-graphics-21.0.2-win.jar;%APP_HOME%\lib\javafx-base-21.0.2-win.jar
+set CLASSPATH=%APP_HOME%\lib\mazeGenerator-1.0.0.jar;%APP_HOME%\lib\javafx-fxml-21.0.2-win.jar;%APP_HOME%\lib\javafx-controls-21.0.2-win.jar;%APP_HOME%\lib\javafx-swing-21.0.2-win.jar;%APP_HOME%\lib\javafx-graphics-21.0.2-win.jar;%APP_HOME%\lib\javafx-base-21.0.2-win.jar
 
 
 @rem Execute mazeGenerator

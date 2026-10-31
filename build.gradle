@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.maze'
-version = '1.0-S'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
@@ -13,7 +13,13 @@ repositories {
 
 javafx {
     version = '21.0.2'
-    modules = ['javafx.controls', 'javafx.fxml', 'javafx.graphics']
+    modules = ['javafx.controls', 'javafx.fxml', 'javafx.graphics', 'javafx.swing']
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 application {
