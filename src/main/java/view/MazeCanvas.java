@@ -13,6 +13,7 @@ public class MazeCanvas extends Canvas {
     private Cell currentHead;
     private List<Cell> solvedPath;
     private Cell playerCell; // Added for playable mode
+    private boolean isDarkMode = true; // Default to dark mode theme
 
     public MazeCanvas(double width, double height) {
         super(width, height);
@@ -40,6 +41,12 @@ public class MazeCanvas extends Canvas {
         draw();
     }
 
+    // --- Added method to dynamically switch theme colors ---
+    public void setDarkMode(boolean darkMode) {
+        this.isDarkMode = darkMode;
+        draw();
+    }
+
     public void draw() {
         GraphicsContext gc = getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
@@ -64,16 +71,26 @@ public class MazeCanvas extends Canvas {
                     gc.setFill(Color.TOMATO);
                     gc.fillRect(px, py, cellWidth, cellHeight);
                 } else if (c.visited) {
-                    gc.setFill(Color.WHITE);
+                    // Dynamic cell background based on theme mode
+                    if (isDarkMode) {
+                        gc.setFill(Color.web("#1e1e1e")); // Dark background
+                    } else {
+                        gc.setFill(Color.web("#eaeaea")); // Light grey background
+                    }
                     gc.fillRect(px, py, cellWidth, cellHeight);
                 } else {
-                    gc.setFill(Color.DARKSLATEGRAY);
+                    gc.setFill(isDarkMode ? Color.DARKSLATEGRAY : Color.web("#d0d0d0"));
                     gc.fillRect(px, py, cellWidth, cellHeight);
                 }
 
-                // Draw Walls
-                gc.setStroke(Color.BLACK);
+                // Draw Walls (Dynamic color based on theme mode)
+                if (isDarkMode) {
+                    gc.setStroke(Color.web("#555555")); // Soft grey walls for dark mode
+                } else {
+                    gc.setStroke(Color.BLACK);          // Crisp black walls for light mode
+                }
                 gc.setLineWidth(2);
+
                 if (c.walls[0]) gc.strokeLine(px, py, px + cellWidth, py);                 // Top
                 if (c.walls[1]) gc.strokeLine(px + cellWidth, py, px + cellWidth, py + cellHeight); // Right
                 if (c.walls[2]) gc.strokeLine(px, py + cellHeight, px + cellWidth, py + cellHeight); // Bottom

@@ -31,6 +31,7 @@ public class MazeGeneratorApp extends Application {
     private ComboBox<String> algorithmCombo;
     private ToggleButton playModeToggle;
     private ToggleButton showSolutionToggle;
+    private ToggleButton themeToggle;
     private boolean isPlayMode = false;
     private Cell playerCell = null;
     private int playerSteps = 0;
@@ -41,11 +42,39 @@ public class MazeGeneratorApp extends Application {
 
         mazeCanvas = new MazeCanvas(600, 600);
 
+        // --- Sliders with Live Value Labels & Integer Snapping ---
+        Label widthLabel = new Label("Width (Cols): 15");
         Slider widthSlider = new Slider(5, 40, 15);
+        widthSlider.setShowTickLabels(true);
+        widthSlider.setShowTickMarks(true);
+        widthSlider.setMajorTickUnit(5);
+        widthSlider.setBlockIncrement(1);
+        widthSlider.setSnapToTicks(true);
+        widthSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            widthLabel.setText("Width (Cols): " + newVal.intValue());
+        });
+
+        Label heightLabel = new Label("Height (Rows): 15");
         Slider heightSlider = new Slider(5, 40, 15);
-        Spinner<Integer> entrancesSpinner = new Spinner<>(1, 5, 1);
-        Spinner<Integer> exitsSpinner = new Spinner<>(1, 5, 1);
+        heightSlider.setShowTickLabels(true);
+        heightSlider.setShowTickMarks(true);
+        heightSlider.setMajorTickUnit(5);
+        heightSlider.setBlockIncrement(1);
+        heightSlider.setSnapToTicks(true);
+        heightSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            heightLabel.setText("Height (Rows): " + newVal.intValue());
+        });
+
+        Label braidLabel = new Label("Loop / Braid Factor (%): 20%");
         Slider braidSlider = new Slider(0, 100, 20);
+        braidSlider.setShowTickLabels(true);
+        braidSlider.setShowTickMarks(true);
+        braidSlider.setMajorTickUnit(25);
+        braidSlider.setBlockIncrement(5);
+        braidSlider.setSnapToTicks(true);
+        braidSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            braidLabel.setText("Loop / Braid Factor (%): " + newVal.intValue() + "%");
+        });
 
         algorithmCombo = new ComboBox<>();
         algorithmCombo.getItems().addAll(
@@ -58,7 +87,10 @@ public class MazeGeneratorApp extends Application {
 
         playModeToggle = new ToggleButton("Playable Mode: OFF");
         playModeToggle.setMaxWidth(Double.MAX_VALUE);
-        playModeToggle.setStyle("-fx-base: #ffcccc;");
+
+        themeToggle = new ToggleButton("Theme: Dark");
+        themeToggle.setMaxWidth(Double.MAX_VALUE);
+        themeToggle.setSelected(true);
 
         Button generateBtn = new Button("Generate Labyrinth");
         generateBtn.setMaxWidth(Double.MAX_VALUE);
@@ -78,7 +110,6 @@ public class MazeGeneratorApp extends Application {
             }
         });
 
-        // --- Κουμπί Εξαγωγής Εικόνας (Feature 6) ---
         Button exportBtn = new Button("Export Image");
         exportBtn.setMaxWidth(Double.MAX_VALUE);
         exportBtn.setOnAction(e -> {
@@ -100,61 +131,69 @@ public class MazeGeneratorApp extends Application {
             }
         });
 
-        widthSlider.setShowTickLabels(true);
-        heightSlider.setShowTickLabels(true);
-
         statsLabel = new Label("Statistics:\n• Total Cells: -\n• Dead Ends: -\n• Path Length: -");
-        statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10; -fx-background-color: #f4f4f4; -fx-border-color: #ccc;");
+        statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10;");
 
+        // Cleaned control panel layout without spinners
         VBox controls = new VBox(10,
                 new Label("Algorithm:"), algorithmCombo,
                 playModeToggle,
-                new Label("Width (Cols):"), widthSlider,
-                new Label("Height (Rows):"), heightSlider,
-                new Label("Entrances:"), entrancesSpinner,
-                new Label("Exits:"), exitsSpinner,
-                new Label("Loop / Braid Factor (%):"), braidSlider,
+                themeToggle,
+                widthLabel, widthSlider,
+                heightLabel, heightSlider,
+                braidLabel, braidSlider,
                 generateBtn,
                 showSolutionToggle,
-                exportBtn, // Προσθήκη του κουμπιού εξαγωγής στο μενού
+                exportBtn,
                 new Separator(),
                 new Label("Maze Metrics"),
                 statsLabel
         );
         controls.setPadding(new Insets(15));
-        controls.setPrefWidth(240);
+        controls.setPrefWidth(250);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
         root.setRight(controls);
 
+        Scene scene = new Scene(root, 880, 750);
+        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+
+        themeToggle.setOnAction(e -> {
+            if (themeToggle.isSelected()) {
+                themeToggle.setText("Theme: Dark");
+                if (!scene.getStylesheets().contains(getClass().getResource("/style.css").toExternalForm())) {
+                    scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+                }
+                mazeCanvas.setDarkMode(true);
+            } else {
+                themeToggle.setText("Theme: Light");
+                scene.getStylesheets().remove(getClass().getResource("/style.css").toExternalForm());
+                mazeCanvas.setDarkMode(false);
+            }
+        });
+
         generateBtn.setOnAction(e -> {
             int cols = (int) widthSlider.getValue();
             int rows = (int) heightSlider.getValue();
-            int entrances = entrancesSpinner.getValue();
-            int exits = exitsSpinner.getValue();
             double braidFactor = braidSlider.getValue() / 100.0;
             String selectedAlgo = algorithmCombo.getValue();
 
-            startGenerationAnimation(cols, rows, entrances, exits, braidFactor, selectedAlgo);
+            startGenerationAnimation(cols, rows, braidFactor, selectedAlgo);
         });
 
         playModeToggle.setOnAction(e -> {
             isPlayMode = playModeToggle.isSelected();
             if (isPlayMode) {
                 playModeToggle.setText("Playable Mode: ON");
-                playModeToggle.setStyle("-fx-base: #ccffcc;");
                 spawnPlayer();
             } else {
                 playModeToggle.setText("Playable Mode: OFF");
-                playModeToggle.setStyle("-fx-base: #ffcccc;");
                 playerCell = null;
                 playerSteps = 0;
                 mazeCanvas.setPlayerCell(null);
             }
         });
-
-        Scene scene = new Scene(root, 870, 750);
 
         scene.setOnKeyPressed(event -> {
             if (!isPlayMode || grid == null || playerCell == null) return;
@@ -187,7 +226,6 @@ public class MazeGeneratorApp extends Application {
                         isPlayMode = false;
                         playModeToggle.setSelected(false);
                         playModeToggle.setText("Playable Mode: OFF");
-                        playModeToggle.setStyle("-fx-base: #ffcccc;");
                         playerCell = null;
                         playerSteps = 0;
                         mazeCanvas.setPlayerCell(null);
@@ -202,7 +240,7 @@ public class MazeGeneratorApp extends Application {
         generateBtn.fire();
     }
 
-    private void startGenerationAnimation(int cols, int rows, int entrances, int exits, double braidFactor, String algorithm) {
+    private void startGenerationAnimation(int cols, int rows, double braidFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
         grid = new MazeGrid(cols, rows);
@@ -233,7 +271,7 @@ public class MazeGeneratorApp extends Application {
             if (!running) {
                 animTimeline.stop();
                 applyBraidFactor(grid, braidFactor);
-                createOpenings(grid, entrances, exits);
+                createOpenings(grid); // Automatically creates exactly 1 entrance and 1 exit
                 mazeCanvas.setCurrentHead(null);
                 updateStatistics(-1);
 
@@ -367,21 +405,21 @@ public class MazeGeneratorApp extends Application {
         }
     }
 
-    private void createOpenings(MazeGrid grid, int entrances, int exits) {
+    // Always creates exactly 1 entrance and 1 exit
+    private void createOpenings(MazeGrid grid) {
         Random rand = new Random();
-        for (int i = 0; i < entrances; i++) {
-            int y = rand.nextInt(grid.rows);
-            Cell c = grid.getCell(0, y);
-            c.walls[3] = false;
-            c.isEntrance = true;
-        }
 
-        for (int i = 0; i < exits; i++) {
-            int y = rand.nextInt(grid.rows);
-            Cell c = grid.getCell(grid.cols - 1, y);
-            c.walls[1] = false;
-            c.isExit = true;
-        }
+        // Exactly 1 Entrance on the left column
+        int entranceY = rand.nextInt(grid.rows);
+        Cell entranceCell = grid.getCell(0, entranceY);
+        entranceCell.walls[3] = false;
+        entranceCell.isEntrance = true;
+
+        // Exactly 1 Exit on the right column
+        int exitY = rand.nextInt(grid.rows);
+        Cell exitCell = grid.getCell(grid.cols - 1, exitY);
+        exitCell.walls[1] = false;
+        exitCell.isExit = true;
     }
 
     public static void main(String[] args) {
