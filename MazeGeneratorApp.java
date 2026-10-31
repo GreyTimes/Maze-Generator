@@ -18,6 +18,7 @@ public class MazeGeneratorApp extends Application {
     private MazeGrid grid;
     private MazeCanvas mazeCanvas;
     private Timeline animTimeline;
+    private Label statsLabel; // UI label for live statistics
 
     @Override
     public void start(Stage primaryStage) {
@@ -36,16 +37,23 @@ public class MazeGeneratorApp extends Application {
         widthSlider.setShowTickLabels(true);
         heightSlider.setShowTickLabels(true);
 
+        // Statistics Panel Setup (Issue #3)
+        statsLabel = new Label("Statistics:\n- Total Cells: -\n- Dead Ends: -\n- Path Length: -");
+        statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10; -fx-background-color: #f4f4f4; -fx-border-color: #ccc;");
+
         VBox controls = new VBox(10,
                 new Label("Width (Cols):"), widthSlider,
                 new Label("Height (Rows):"), heightSlider,
                 new Label("Entrances:"), entrancesSpinner,
                 new Label("Exits:"), exitsSpinner,
                 new Label("Loop / Braid Factor (%):"), braidSlider,
-                generateBtn
+                generateBtn,
+                new Separator(),
+                new Label("Maze Metrics"),
+                statsLabel
         );
         controls.setPadding(new Insets(15));
-        controls.setPrefWidth(220);
+        controls.setPrefWidth(240);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
@@ -61,7 +69,7 @@ public class MazeGeneratorApp extends Application {
             startGenerationAnimation(cols, rows, entrances, exits, braidFactor);
         });
 
-        Scene scene = new Scene(root, 850, 650);
+        Scene scene = new Scene(root, 870, 650);
         primaryStage.setScene(scene);
         primaryStage.show();
 
@@ -74,6 +82,7 @@ public class MazeGeneratorApp extends Application {
 
         grid = new MazeGrid(cols, rows);
         mazeCanvas.setGrid(grid);
+        updateStatistics(0); // Reset/init stats
 
         Stack<Cell> stack = new Stack<>();
         Random rand = new Random();
@@ -104,7 +113,7 @@ public class MazeGeneratorApp extends Application {
                 mazeCanvas.setCurrentHead(null);
                 animTimeline.stop();
 
-                // AUTOMATIC PATHFINDING SOLVER (Issue #2)
+                // Run BFS solver and compute final metrics
                 runBfsSolver();
             }
         });
@@ -127,9 +136,7 @@ public class MazeGeneratorApp extends Application {
         return neighbors;
     }
 
-    // --- BFS SOLVER IMPLEMENTATION ---
     private void runBfsSolver() {
-        // Find the first entrance and first exit to solve between them
         Cell start = null;
         Cell target = null;
 
@@ -164,11 +171,9 @@ public class MazeGeneratorApp extends Application {
                 break;
             }
 
-            // Check traversable neighbors (respecting walls)
-            // Order: Top, Right, Bottom, Left
             int[][] dirs = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
             for (int i = 0; i < 4; i++) {
-                if (!current.walls[i]) { // If wall is open
+                if (!current.walls[i]) {
                     Cell neighbor = grid.getCell(current.x + dirs[i][0], current.y + dirs[i][1]);
                     if (neighbor != null && !visited.contains(neighbor)) {
                         visited.add(neighbor);
@@ -179,7 +184,6 @@ public class MazeGeneratorApp extends Application {
             }
         }
 
-        // Reconstruct path
         if (found) {
             List<Cell> path = new ArrayList<>();
             Cell curr = target;
@@ -189,7 +193,29 @@ public class MazeGeneratorApp extends Application {
             }
             Collections.reverse(path);
             mazeCanvas.setSolvedPath(path);
+            updateStatistics(path.size());
+        } else {
+            updateStatistics(-1);
         }
+    }
+
+    // --- METRICS CALCULATION (Issue #3) ---
+    private void updateStatistics(int pathLength) {
+        int totalCells = grid.cols * grid.rows;
+        int deadEnds = 0;
+
+        for (int x = 0; x < grid.cols; x++) {
+            for (int y = 0; y < grid.rows; y++) {
+                Cell cell = grid.cells[x][y];
+                int wallCount = 0;
+                for (boolean w : cell.walls) if (w) wallCount++;
+                if (wallCount == 3) deadEnds++;
+            }
+        }
+
+        String pathStr = (pathLength > 0) ? pathLength + " steps" : "No path";
+        statsLabel.setText(String.format("Statistics:\n• Total Cells: %d\n• Dead Ends: %d\n• Path Length: %s",
+                totalCells, deadEnds, pathStr));
     }
 
     private void applyBraidFactor(MazeGrid grid, double braidFactor) {
