@@ -11,7 +11,8 @@ import java.util.List;
 public class MazeCanvas extends Canvas {
     private MazeGrid grid;
     private Cell currentHead;
-    private List<Cell> solvedPath; // Added for the pathfinding solver
+    private List<Cell> solvedPath;
+    private Cell playerCell; // Added for playable mode
 
     public MazeCanvas(double width, double height) {
         super(width, height);
@@ -20,6 +21,7 @@ public class MazeCanvas extends Canvas {
     public void setGrid(MazeGrid grid) {
         this.grid = grid;
         this.solvedPath = null;
+        this.playerCell = null;
         draw();
     }
 
@@ -30,6 +32,11 @@ public class MazeCanvas extends Canvas {
 
     public void setSolvedPath(List<Cell> solvedPath) {
         this.solvedPath = solvedPath;
+        draw();
+    }
+
+    public void setPlayerCell(Cell playerCell) {
+        this.playerCell = playerCell;
         draw();
     }
 
@@ -91,6 +98,14 @@ public class MazeCanvas extends Canvas {
             gc.setFill(Color.DODGERBLUE);
             gc.fillRect(currentHead.x * cellWidth + 2, currentHead.y * cellHeight + 2,
                     cellWidth - 4, cellHeight - 4);
+        }
+
+        // Render Playable Mode Player Token (Magenta Circle)
+        if (playerCell != null) {
+            gc.setFill(Color.MAGENTA);
+            gc.fillOval(playerCell.x * cellWidth + cellWidth * 0.2,
+                    playerCell.y * cellHeight + cellHeight * 0.2,
+                    cellWidth * 0.6, cellHeight * 0.6);
         }
     }
 }
