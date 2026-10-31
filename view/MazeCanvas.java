@@ -6,9 +6,12 @@ import javafx.scene.paint.Color;
 import model.Cell;
 import model.MazeGrid;
 
+import java.util.List;
+
 public class MazeCanvas extends Canvas {
     private MazeGrid grid;
     private Cell currentHead;
+    private List<Cell> solvedPath; // Added for the pathfinding solver
 
     public MazeCanvas(double width, double height) {
         super(width, height);
@@ -16,11 +19,17 @@ public class MazeCanvas extends Canvas {
 
     public void setGrid(MazeGrid grid) {
         this.grid = grid;
+        this.solvedPath = null;
         draw();
     }
 
     public void setCurrentHead(Cell head) {
         this.currentHead = head;
+        draw();
+    }
+
+    public void setSolvedPath(List<Cell> solvedPath) {
+        this.solvedPath = solvedPath;
         draw();
     }
 
@@ -62,6 +71,18 @@ public class MazeCanvas extends Canvas {
                 if (c.walls[1]) gc.strokeLine(px + cellWidth, py, px + cellWidth, py + cellHeight); // Right
                 if (c.walls[2]) gc.strokeLine(px, py + cellHeight, px + cellWidth, py + cellHeight); // Bottom
                 if (c.walls[3]) gc.strokeLine(px, py, px, py + cellHeight);                // Left
+            }
+        }
+
+        // Render Solved Path (Gold trail)
+        if (solvedPath != null) {
+            gc.setFill(Color.GOLD);
+            for (Cell c : solvedPath) {
+                if (!c.isEntrance && !c.isExit) {
+                    double px = c.x * cellWidth;
+                    double py = c.y * cellHeight;
+                    gc.fillRect(px + cellWidth / 4, py + cellHeight / 4, cellWidth / 2, cellHeight / 2);
+                }
             }
         }
 
