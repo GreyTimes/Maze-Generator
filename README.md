@@ -35,7 +35,7 @@ A modern, feature-rich desktop application built with **JavaFX** for generating,
 
 4. Play Mode:
 - Toggle "Playable Mode: ON".
-- Use your keyboard's Arrow Keys or WASD to navigate your way from the entrance on the left to the exit on the right.
+- Use your keyboard's WASD to navigate your way from the entrance on the left to the exit on the right.
 
 5. Export: Click "Export Image" to save your completed maze as a high-quality .png file.
 
