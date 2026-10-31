@@ -10,6 +10,7 @@ import javafx.util.Duration;
 import model.Cell;
 import model.MazeGrid;
 import view.MazeCanvas;
+import generator.*;
 
 import java.util.*;
 
@@ -18,7 +19,8 @@ public class MazeGeneratorApp extends Application {
     private MazeGrid grid;
     private MazeCanvas mazeCanvas;
     private Timeline animTimeline;
-    private Label statsLabel; // UI label for live statistics
+    private Label statsLabel;
+    private ComboBox<String> algorithmCombo;
 
     @Override
     public void start(Stage primaryStage) {
@@ -26,22 +28,32 @@ public class MazeGeneratorApp extends Application {
 
         mazeCanvas = new MazeCanvas(600, 600);
 
-        // Control UI Elements
-        Slider widthSlider = new Slider(5, 50, 15);
-        Slider heightSlider = new Slider(5, 50, 15);
+        Slider widthSlider = new Slider(5, 40, 15);
+        Slider heightSlider = new Slider(5, 40, 15);
         Spinner<Integer> entrancesSpinner = new Spinner<>(1, 5, 1);
         Spinner<Integer> exitsSpinner = new Spinner<>(1, 5, 1);
-        Slider braidSlider = new Slider(0, 100, 20); // Complexity / Loop percentage
+        Slider braidSlider = new Slider(0, 100, 20);
+
+        algorithmCombo = new ComboBox<>();
+        algorithmCombo.getItems().addAll(
+                "Recursive Backtracker (DFS)",
+                "Randomized Prim's",
+                "Randomized Kruskal's"
+        );
+        algorithmCombo.setValue("Recursive Backtracker (DFS)");
+        algorithmCombo.setMaxWidth(Double.MAX_VALUE);
+
         Button generateBtn = new Button("Generate Labyrinth");
+        generateBtn.setMaxWidth(Double.MAX_VALUE);
 
         widthSlider.setShowTickLabels(true);
         heightSlider.setShowTickLabels(true);
 
-        // Statistics Panel Setup (Issue #3)
         statsLabel = new Label("Statistics:\n- Total Cells: -\n- Dead Ends: -\n- Path Length: -");
         statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10; -fx-background-color: #f4f4f4; -fx-border-color: #ccc;");
 
         VBox controls = new VBox(10,
+                new Label("Algorithm:"), algorithmCombo,
                 new Label("Width (Cols):"), widthSlider,
                 new Label("Height (Rows):"), heightSlider,
                 new Label("Entrances:"), entrancesSpinner,
@@ -65,55 +77,44 @@ public class MazeGeneratorApp extends Application {
             int entrances = entrancesSpinner.getValue();
             int exits = exitsSpinner.getValue();
             double braidFactor = braidSlider.getValue() / 100.0;
+            String selectedAlgo = algorithmCombo.getValue();
 
-            startGenerationAnimation(cols, rows, entrances, exits, braidFactor);
+            startGenerationAnimation(cols, rows, entrances, exits, braidFactor, selectedAlgo);
         });
 
-        Scene scene = new Scene(root, 870, 650);
+        Scene scene = new Scene(root, 870, 680);
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        // Initial Generation
         generateBtn.fire();
     }
 
-    private void startGenerationAnimation(int cols, int rows, int entrances, int exits, double braidFactor) {
+    private void startGenerationAnimation(int cols, int rows, int entrances, int exits, double braidFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
         grid = new MazeGrid(cols, rows);
         mazeCanvas.setGrid(grid);
-        updateStatistics(0); // Reset/init stats
+        updateStatistics(0);
 
-        Stack<Cell> stack = new Stack<>();
-        Random rand = new Random();
+        // Pick strategy pattern generator
+        MazeGenerator generator = switch (algorithm) {
+            case "Randomized Prim's" -> new PrimsMazeGenerator();
+            case "Randomized Kruskal's" -> new KruskalsMazeGenerator();
+            default -> new DfsMazeGenerator();
+        };
 
-        Cell startCell = grid.getCell(0, 0);
-        startCell.visited = true;
-        stack.push(startCell);
+        generator.initialize(grid);
 
         animTimeline = new Timeline();
-        KeyFrame keyFrame = new KeyFrame(Duration.millis(15), e -> {
-            if (!stack.isEmpty()) {
-                Cell current = stack.peek();
-                mazeCanvas.setCurrentHead(current);
+        KeyFrame keyFrame = new KeyFrame(Duration.millis(12), e -> {
+            boolean running = generator.step();
+            mazeCanvas.setCurrentHead(generator.getCurrentHead());
 
-                List<Cell> unvisitedNeighbors = getUnvisitedNeighbors(grid, current);
-                if (!unvisitedNeighbors.isEmpty()) {
-                    Cell next = unvisitedNeighbors.get(rand.nextInt(unvisitedNeighbors.size()));
-                    grid.removeWalls(current, next);
-                    next.visited = true;
-                    stack.push(next);
-                } else {
-                    stack.pop();
-                }
-            } else {
-                // Maze generation finished -> Apply extra parameters
+            if (!running) {
+                animTimeline.stop();
                 applyBraidFactor(grid, braidFactor);
                 createOpenings(grid, entrances, exits);
                 mazeCanvas.setCurrentHead(null);
-                animTimeline.stop();
-
-                // Run BFS solver and compute final metrics
                 runBfsSolver();
             }
         });
@@ -123,34 +124,15 @@ public class MazeGeneratorApp extends Application {
         animTimeline.play();
     }
 
-    private List<Cell> getUnvisitedNeighbors(MazeGrid grid, Cell cell) {
-        List<Cell> neighbors = new ArrayList<>();
-        int[][] dirs = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-
-        for (int[] d : dirs) {
-            Cell neighbor = grid.getCell(cell.x + d[0], cell.y + d[1]);
-            if (neighbor != null && !neighbor.visited) {
-                neighbors.add(neighbor);
-            }
-        }
-        return neighbors;
-    }
-
     private void runBfsSolver() {
         Cell start = null;
         Cell target = null;
 
         for (int y = 0; y < grid.rows; y++) {
-            if (grid.getCell(0, y).isEntrance) {
-                start = grid.getCell(0, y);
-                break;
-            }
+            if (grid.getCell(0, y).isEntrance) { start = grid.getCell(0, y); break; }
         }
         for (int y = 0; y < grid.rows; y++) {
-            if (grid.getCell(grid.cols - 1, y).isExit) {
-                target = grid.getCell(grid.cols - 1, y);
-                break;
-            }
+            if (grid.getCell(grid.cols - 1, y).isExit) { target = grid.getCell(grid.cols - 1, y); break; }
         }
 
         if (start == null || target == null) return;
@@ -165,11 +147,7 @@ public class MazeGeneratorApp extends Application {
         boolean found = false;
         while (!queue.isEmpty()) {
             Cell current = queue.poll();
-
-            if (current.equals(target)) {
-                found = true;
-                break;
-            }
+            if (current.equals(target)) { found = true; break; }
 
             int[][] dirs = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
             for (int i = 0; i < 4; i++) {
@@ -199,7 +177,6 @@ public class MazeGeneratorApp extends Application {
         }
     }
 
-    // --- METRICS CALCULATION (Issue #3) ---
     private void updateStatistics(int pathLength) {
         int totalCells = grid.cols * grid.rows;
         int deadEnds = 0;
