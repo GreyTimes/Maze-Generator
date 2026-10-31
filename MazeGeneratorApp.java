@@ -3,134 +3,18 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import model.Cell;
+import model.MazeGrid;
+import view.MazeCanvas;
 
 import java.util.*;
 
 public class MazeGeneratorApp extends Application {
 
-    // --- MODEL CLASSES ---
-    public static class Cell {
-        public int x, y;
-        public boolean[] walls = {true, true, true, true}; // Top, Right, Bottom, Left
-        public boolean visited = false;
-        public boolean isEntrance = false;
-        public boolean isExit = false;
-
-        public Cell(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    public static class MazeGrid {
-        public final int cols, rows;
-        public final Cell[][] cells;
-
-        public MazeGrid(int cols, int rows) {
-            this.cols = cols;
-            this.rows = rows;
-            this.cells = new Cell[cols][rows];
-            for (int x = 0; x < cols; x++) {
-                for (int y = 0; y < rows; y++) {
-                    cells[x][y] = new Cell(x, y);
-                }
-            }
-        }
-
-        public Cell getCell(int x, int y) {
-            if (x < 0 || y < 0 || x >= cols || y >= rows) return null;
-            return cells[x][y];
-        }
-
-        public void removeWalls(Cell a, Cell b) {
-            int dx = a.x - b.x;
-            int dy = a.y - b.y;
-
-            if (dx == 1) { a.walls[3] = false; b.walls[1] = false; }       // Left / Right
-            else if (dx == -1) { a.walls[1] = false; b.walls[3] = false; } // Right / Left
-
-            if (dy == 1) { a.walls[0] = false; b.walls[2] = false; }       // Top / Bottom
-            else if (dy == -1) { a.walls[2] = false; b.walls[0] = false; } // Bottom / Top
-        }
-    }
-
-    // --- VIEW / CANVAS CLASS ---
-    public static class MazeCanvas extends Canvas {
-        private MazeGrid grid;
-        private Cell currentHead;
-
-        public MazeCanvas(double width, double height) {
-            super(width, height);
-        }
-
-        public void setGrid(MazeGrid grid) {
-            this.grid = grid;
-            draw();
-        }
-
-        public void setCurrentHead(Cell head) {
-            this.currentHead = head;
-            draw();
-        }
-
-        public void draw() {
-            GraphicsContext gc = getGraphicsContext2D();
-            gc.clearRect(0, 0, getWidth(), getHeight());
-
-            if (grid == null) return;
-
-            double cellWidth = getWidth() / grid.cols;
-            double cellHeight = getHeight() / grid.rows;
-
-            // Render Cells
-            for (int x = 0; x < grid.cols; x++) {
-                for (int y = 0; y < grid.rows; y++) {
-                    Cell c = grid.cells[x][y];
-                    double px = x * cellWidth;
-                    double py = y * cellHeight;
-
-                    // Background highlight
-                    if (c.isEntrance) {
-                        gc.setFill(Color.LIGHTGREEN);
-                        gc.fillRect(px, py, cellWidth, cellHeight);
-                    } else if (c.isExit) {
-                        gc.setFill(Color.TOMATO);
-                        gc.fillRect(px, py, cellWidth, cellHeight);
-                    } else if (c.visited) {
-                        gc.setFill(Color.WHITE);
-                        gc.fillRect(px, py, cellWidth, cellHeight);
-                    } else {
-                        gc.setFill(Color.DARKSLATEGRAY);
-                        gc.fillRect(px, py, cellWidth, cellHeight);
-                    }
-
-                    // Draw Walls
-                    gc.setStroke(Color.BLACK);
-                    gc.setLineWidth(2);
-                    if (c.walls[0]) gc.strokeLine(px, py, px + cellWidth, py);                 // Top
-                    if (c.walls[1]) gc.strokeLine(px + cellWidth, py, px + cellWidth, py + cellHeight); // Right
-                    if (c.walls[2]) gc.strokeLine(px, py + cellHeight, px + cellWidth, py + cellHeight); // Bottom
-                    if (c.walls[3]) gc.strokeLine(px, py, px, py + cellHeight);                // Left
-                }
-            }
-
-            // Highlight generator current head position
-            if (currentHead != null) {
-                gc.setFill(Color.DODGERBLUE);
-                gc.fillRect(currentHead.x * cellWidth + 2, currentHead.y * cellHeight + 2,
-                        cellWidth - 4, cellHeight - 4);
-            }
-        }
-    }
-
-    // --- MAIN JAVAFX APPLICATION ---
     private MazeGrid grid;
     private MazeCanvas mazeCanvas;
     private Timeline animTimeline;
@@ -245,11 +129,9 @@ public class MazeGeneratorApp extends Application {
         for (int x = 0; x < grid.cols; x++) {
             for (int y = 0; y < grid.rows; y++) {
                 Cell cell = grid.cells[x][y];
-                // Count wall intactness
                 int wallCount = 0;
                 for (boolean w : cell.walls) if (w) wallCount++;
 
-                // If it's a dead-end (3 walls) and passes random probability check, open one wall
                 if (wallCount == 3 && rand.nextDouble() < braidFactor) {
                     List<Cell> adj = new ArrayList<>();
                     int[][] dirs = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
@@ -267,19 +149,17 @@ public class MazeGeneratorApp extends Application {
 
     private void createOpenings(MazeGrid grid, int entrances, int exits) {
         Random rand = new Random();
-        // Create Entrances along Left Border
         for (int i = 0; i < entrances; i++) {
             int y = rand.nextInt(grid.rows);
             Cell c = grid.getCell(0, y);
-            c.walls[3] = false; // Knock down left wall
+            c.walls[3] = false;
             c.isEntrance = true;
         }
 
-        // Create Exits along Right Border
         for (int i = 0; i < exits; i++) {
             int y = rand.nextInt(grid.rows);
             Cell c = grid.getCell(grid.cols - 1, y);
-            c.walls[1] = false; // Knock down right wall
+            c.walls[1] = false;
             c.isExit = true;
         }
     }
