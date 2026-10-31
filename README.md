@@ -19,7 +19,7 @@ A modern, feature-rich desktop application built with **JavaFX** for generating,
 ## Getting Started
 
 ### For Users (Running the Release)
-1. Download the latest release `.zip` package from the [Releases](https://github.com/GreyTimes/mazeGenerator/releases) page.
+1. Download the latest release `.zip` package from the [Releases](https://github.com/GreyTimes/Maze-Generator/releases) page.
 2. Extract the archive anywhere on your computer.
 3. Open the extracted folder, navigate to the **`bin`** directory.
 4. Double-click **`mazeGenerator.bat`** (Windows) to launch the application.
