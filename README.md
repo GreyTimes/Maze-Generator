@@ -48,7 +48,7 @@ A modern, feature-rich desktop application built with **JavaFX** for generating,
 
 #### Clone the repository
 ```
-git clone [https://github.com/YourUsername/mazeGenerator.git](https://github.com/YourUsername/mazeGenerator.git)
+git clone (https://github.com/GreyTimes/Maze-Generator.git)
 cd mazeGenerator
 ```
 #### Run the application (Windows)
