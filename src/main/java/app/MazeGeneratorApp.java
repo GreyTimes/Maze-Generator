@@ -3,10 +3,13 @@ package app;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import model.Cell;
@@ -14,6 +17,9 @@ import model.MazeGrid;
 import view.MazeCanvas;
 import generator.*;
 
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public class MazeGeneratorApp extends Application {
@@ -24,7 +30,7 @@ public class MazeGeneratorApp extends Application {
     private Label statsLabel;
     private ComboBox<String> algorithmCombo;
     private ToggleButton playModeToggle;
-    private ToggleButton showSolutionToggle; // Toggle for showing/hiding solution
+    private ToggleButton showSolutionToggle;
     private boolean isPlayMode = false;
     private Cell playerCell = null;
     private int playerSteps = 0;
@@ -57,7 +63,6 @@ public class MazeGeneratorApp extends Application {
         Button generateBtn = new Button("Generate Labyrinth");
         generateBtn.setMaxWidth(Double.MAX_VALUE);
 
-        // --- Toggleable Show/Hide Solution Button ---
         showSolutionToggle = new ToggleButton("Show Solution");
         showSolutionToggle.setMaxWidth(Double.MAX_VALUE);
         showSolutionToggle.setOnAction(e -> {
@@ -69,6 +74,28 @@ public class MazeGeneratorApp extends Application {
                 if (mazeCanvas != null) {
                     mazeCanvas.setSolvedPath(null);
                     updateStatistics(-1);
+                }
+            }
+        });
+
+        // --- Κουμπί Εξαγωγής Εικόνας (Feature 6) ---
+        Button exportBtn = new Button("Export Image");
+        exportBtn.setMaxWidth(Double.MAX_VALUE);
+        exportBtn.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save Maze Image");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG Image (*.png)", "*.png"));
+            fileChooser.setInitialFileName("maze.png");
+
+            File file = fileChooser.showSaveDialog(primaryStage);
+            if (file != null) {
+                WritableImage writableImage = new WritableImage((int) mazeCanvas.getWidth(), (int) mazeCanvas.getHeight());
+                mazeCanvas.snapshot(null, writableImage);
+                try {
+                    ImageIO.write(SwingFXUtils.fromFXImage(writableImage, null), "png", file);
+                } catch (IOException ex) {
+                    Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to save image: " + ex.getMessage(), ButtonType.OK);
+                    alert.showAndWait();
                 }
             }
         });
@@ -89,6 +116,7 @@ public class MazeGeneratorApp extends Application {
                 new Label("Loop / Braid Factor (%):"), braidSlider,
                 generateBtn,
                 showSolutionToggle,
+                exportBtn, // Προσθήκη του κουμπιού εξαγωγής στο μενού
                 new Separator(),
                 new Label("Maze Metrics"),
                 statsLabel
@@ -222,7 +250,7 @@ public class MazeGeneratorApp extends Application {
 
     private void spawnPlayer() {
         if (grid == null) return;
-        playerSteps = 1; // Starting on the entrance cell counts as step 1
+        playerSteps = 1;
         for (int y = 0; y < grid.rows; y++) {
             Cell c = grid.getCell(0, y);
             if (c.isEntrance) {
