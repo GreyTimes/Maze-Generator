@@ -5,6 +5,7 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.WritableImage;
@@ -52,8 +53,68 @@ public class MazeGeneratorApp extends Application {
 
         mazeCanvas = new MazeCanvas(600, 600);
 
-        // --- Grid Size Slider ---
+        Label algoHeader = new Label("Gen Algorithm:");
+        Label algoInfo = createInfoIcon("Generation Algorithms:\n" +
+                "• DFS: Creates long, winding corridors with fewer dead ends.\n" +
+                "• Prim's / Kruskal's: Produces highly branched, short corridors.\n" +
+                "• Aldous-Broder / Wilson's: Generates uniform spanning trees using random walks.");
+        algorithmCombo = new ComboBox<>();
+        algorithmCombo.getItems().addAll(
+                "Recursive Backtracker (DFS)",
+                "Randomized Prim's",
+                "Randomized Kruskal's",
+                "Aldous-Broder",
+                "Wilson's"
+        );
+        algorithmCombo.setValue("Recursive Backtracker (DFS)");
+        algorithmCombo.setMaxWidth(Double.MAX_VALUE);
+
+        Label solverHeader = new Label("Solver Algorithm:");
+        Label solverInfo = createInfoIcon("Pathfinding Solvers:\n" +
+                "• BFS: Finds the absolute shortest path guaranteed.\n" +
+                "• DFS: Explores deep paths quickly, not necessarily the shortest.\n" +
+                "• Dijkstra's: Computes weighted shortest paths across cell distances.");
+        solverCombo = new ComboBox<>();
+        solverCombo.getItems().addAll(
+                "Breadth-First Search (BFS)",
+                "Depth-First Search (DFS)",
+                "Dijkstra's Algorithm"
+        );
+        solverCombo.setValue("Breadth-First Search (BFS)");
+        solverCombo.setMaxWidth(Double.MAX_VALUE);
+
+        solverCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (showSolutionToggle.isSelected() && grid != null) {
+                solveAndDisplayPath();
+            }
+        });
+
+        playModeToggle = new ToggleButton("Playable Mode: OFF");
+        playModeToggle.setMaxWidth(Double.MAX_VALUE);
+        Label playInfo = createInfoIcon("Enable keyboard navigation (WASD keys) to solve the maze manually.");
+        HBox playBox = new HBox(5, playModeToggle, playInfo);
+        HBox.setHgrow(playModeToggle, Priority.ALWAYS);
+        playBox.setAlignment(Pos.CENTER_LEFT);
+
+        fogOfWarToggle = new ToggleButton("Fog of War: OFF");
+        fogOfWarToggle.setMaxWidth(Double.MAX_VALUE);
+        Label fogInfo = createInfoIcon("Hides distant unvisited cells outside the player's visibility radius.");
+        HBox fogBox = new HBox(5, fogOfWarToggle, fogInfo);
+        HBox.setHgrow(fogOfWarToggle, Priority.ALWAYS);
+        fogBox.setAlignment(Pos.CENTER_LEFT);
+
+        themeToggle = new ToggleButton("Theme: Dark");
+        themeToggle.setMaxWidth(Double.MAX_VALUE);
+        themeToggle.setSelected(true);
+        Label themeInfo = createInfoIcon("Switches between Dark and Light visual themes.");
+        HBox themeBox = new HBox(5, themeToggle, themeInfo);
+        HBox.setHgrow(themeToggle, Priority.ALWAYS);
+        themeBox.setAlignment(Pos.CENTER_LEFT);
+
         Label gridSizeLabel = new Label("Grid Size: 20");
+        Label gridInfo = createInfoIcon("Defines the uniform dimensions (N × N) of the maze grid.");
+        HBox gridHeaderBox = new HBox(5, gridSizeLabel, gridInfo);
+
         Slider gridSizeSlider = new Slider(10, 50, 20);
         gridSizeSlider.setShowTickLabels(true);
         gridSizeSlider.setShowTickMarks(true);
@@ -64,8 +125,10 @@ public class MazeGeneratorApp extends Application {
                 gridSizeLabel.setText("Grid Size: " + newVal.intValue())
         );
 
-        // --- Animation Speed / Delay Slider ---
         Label speedLabel = new Label("Animation Delay (ms): 12");
+        Label speedInfo = createInfoIcon("Controls the step-by-step slow-motion generation animation speed in milliseconds.");
+        HBox speedHeaderBox = new HBox(5, speedLabel, speedInfo);
+
         Slider speedSlider = new Slider(1, 50, 12);
         speedSlider.setShowTickLabels(true);
         speedSlider.setShowTickMarks(true);
@@ -76,8 +139,10 @@ public class MazeGeneratorApp extends Application {
                 speedLabel.setText("Animation Delay (ms): " + newVal.intValue())
         );
 
-        // --- Complexity / Dead-End Density Slider ---
         Label complexityLabel = new Label("Complexity / Dead-End Density: 50%");
+        Label complexityInfo = createInfoIcon("Tunes dead-end frequency. Higher complexity retains more dead ends by carving fewer loops.");
+        HBox complexityHeaderBox = new HBox(5, complexityLabel, complexityInfo);
+
         Slider complexitySlider = new Slider(0, 100, 50);
         complexitySlider.setShowTickLabels(true);
         complexitySlider.setShowTickMarks(true);
@@ -88,8 +153,10 @@ public class MazeGeneratorApp extends Application {
                 complexityLabel.setText("Complexity / Dead-End Density: " + newVal.intValue() + "%")
         );
 
-        // --- Fog of War Radius Slider ---
         Label fogRadiusLabel = new Label("Fog Radius: 2 cells");
+        Label fogRadiusInfo = createInfoIcon("Defines the player visibility radius in cells when Fog of War mode is active.");
+        HBox fogRadiusHeaderBox = new HBox(5, fogRadiusLabel, fogRadiusInfo);
+
         Slider fogRadiusSlider = new Slider(1, 5, 2);
         fogRadiusSlider.setShowTickLabels(true);
         fogRadiusSlider.setShowTickMarks(true);
@@ -105,48 +172,20 @@ public class MazeGeneratorApp extends Application {
             }
         });
 
-        algorithmCombo = new ComboBox<>();
-        algorithmCombo.getItems().addAll(
-                "Recursive Backtracker (DFS)",
-                "Randomized Prim's",
-                "Randomized Kruskal's",
-                "Aldous-Broder",
-                "Wilson's"
-        );
-        algorithmCombo.setValue("Recursive Backtracker (DFS)");
-        algorithmCombo.setMaxWidth(Double.MAX_VALUE);
-
-        solverCombo = new ComboBox<>();
-        solverCombo.getItems().addAll(
-                "Breadth-First Search (BFS)",
-                "Depth-First Search (DFS)",
-                "Dijkstra's Algorithm"
-        );
-        solverCombo.setValue("Breadth-First Search (BFS)");
-        solverCombo.setMaxWidth(Double.MAX_VALUE);
-
-        // Instantly update solution when solver changes and solution is currently toggled on
-        solverCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (showSolutionToggle.isSelected() && grid != null) {
-                solveAndDisplayPath();
-            }
-        });
-
-        playModeToggle = new ToggleButton("Playable Mode: OFF");
-        playModeToggle.setMaxWidth(Double.MAX_VALUE);
-
-        fogOfWarToggle = new ToggleButton("Fog of War: OFF");
-        fogOfWarToggle.setMaxWidth(Double.MAX_VALUE);
-
-        themeToggle = new ToggleButton("Theme: Dark");
-        themeToggle.setMaxWidth(Double.MAX_VALUE);
-        themeToggle.setSelected(true);
-
         Button generateBtn = new Button("Generate Labyrinth");
         generateBtn.setMaxWidth(Double.MAX_VALUE);
+        Label genInfo = createInfoIcon("Generates a new maze using the selected algorithm and settings.");
+        HBox genBox = new HBox(5, generateBtn, genInfo);
+        HBox.setHgrow(generateBtn, Priority.ALWAYS);
+        genBox.setAlignment(Pos.CENTER_LEFT);
 
         showSolutionToggle = new ToggleButton("Show Solution");
         showSolutionToggle.setMaxWidth(Double.MAX_VALUE);
+        Label solutionInfo = createInfoIcon("Toggles the display of the solved path using the selected pathfinding solver.");
+        HBox solutionBox = new HBox(5, showSolutionToggle, solutionInfo);
+        HBox.setHgrow(showSolutionToggle, Priority.ALWAYS);
+        solutionBox.setAlignment(Pos.CENTER_LEFT);
+
         showSolutionToggle.setOnAction(e -> {
             if (grid == null) {
                 showSolutionToggle.setSelected(false);
@@ -167,6 +206,11 @@ public class MazeGeneratorApp extends Application {
 
         Button exportBtn = new Button("Export Image");
         exportBtn.setMaxWidth(Double.MAX_VALUE);
+        Label exportInfo = createInfoIcon("Exports the current canvas view of the maze as a PNG image file.");
+        HBox exportBox = new HBox(5, exportBtn, exportInfo);
+        HBox.setHgrow(exportBtn, Priority.ALWAYS);
+        exportBox.setAlignment(Pos.CENTER_LEFT);
+
         exportBtn.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Save Maze Image");
@@ -188,32 +232,34 @@ public class MazeGeneratorApp extends Application {
 
         statsLabel = new Label("Statistics:\nTotal Cells: -\nDead Ends: -\nPath Length: -");
         statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10;");
+        Label statsInfo = createInfoIcon("Live metrics showing total cells, dead-end counts, and solver path length.");
+        HBox statsHeaderBox = new HBox(5, new Label("Maze Metrics"), statsInfo);
 
         VBox controls = new VBox(6,
-                new Label("Gen Algorithm:"), algorithmCombo,
-                new Label("Solver Algorithm:"), solverCombo,
-                playModeToggle,
-                fogOfWarToggle,
-                themeToggle,
-                gridSizeLabel, gridSizeSlider,
-                speedLabel, speedSlider,
-                complexityLabel, complexitySlider,
-                fogRadiusLabel, fogRadiusSlider,
-                generateBtn,
-                showSolutionToggle,
-                exportBtn,
+                new HBox(5, algoHeader, algoInfo), algorithmCombo,
+                new HBox(5, solverHeader, solverInfo), solverCombo,
+                playBox,
+                fogBox,
+                themeBox,
+                gridHeaderBox, gridSizeSlider,
+                speedHeaderBox, speedSlider,
+                complexityHeaderBox, complexitySlider,
+                fogRadiusHeaderBox, fogRadiusSlider,
+                genBox,
+                solutionBox,
+                exportBox,
                 new Separator(),
-                new Label("Maze Metrics"),
+                statsHeaderBox,
                 statsLabel
         );
         controls.setPadding(new Insets(10));
-        controls.setPrefWidth(280);
+        controls.setPrefWidth(290);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
         root.setRight(controls);
 
-        Scene scene = new Scene(root, 910, 820);
+        Scene scene = new Scene(root, 920, 840);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         themeToggle.setOnAction(e -> {
@@ -295,10 +341,10 @@ public class MazeGeneratorApp extends Application {
             int wallIndex = -1;
 
             switch (event.getCode()) {
-                case UP, W -> { dy = -1; wallIndex = 0; }
-                case RIGHT, D -> { dx = 1; wallIndex = 1; }
-                case DOWN, S -> { dy = 1; wallIndex = 2; }
-                case LEFT, A -> { dx = -1; wallIndex = 3; }
+                case W -> { dy = -1; wallIndex = 0; }
+                case D -> { dx = 1; wallIndex = 1; }
+                case S -> { dy = 1; wallIndex = 2; }
+                case A -> { dx = -1; wallIndex = 3; }
                 default -> { return; }
             }
 
@@ -328,12 +374,18 @@ public class MazeGeneratorApp extends Application {
         primaryStage.show();
     }
 
+    private Label createInfoIcon(String tooltipText) {
+        Label infoLabel = new Label("ℹ");
+        infoLabel.setStyle("-fx-text-fill: #00bcd4; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 0 0 0 4;");
+        Tooltip.install(infoLabel, new Tooltip(tooltipText));
+        return infoLabel;
+    }
+
     private void startGenerationAnimation(int size, double animDelay, double complexityFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
         grid = new MazeGrid(size, size);
 
-        // Initialize cells discovery state based on current fog setting
         for (int x = 0; x < grid.cols; x++) {
             for (int y = 0; y < grid.rows; y++) {
                 grid.cells[x][y].discovered = !isFogOfWar;
