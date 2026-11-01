@@ -46,27 +46,16 @@ public class MazeGeneratorApp extends Application {
 
         mazeCanvas = new MazeCanvas(600, 600);
 
-        // --- Sliders with Live Value Labels & Integer Snapping ---
-        Label widthLabel = new Label("Width (Cols): 15");
-        Slider widthSlider = new Slider(5, 40, 15);
-        widthSlider.setShowTickLabels(true);
-        widthSlider.setShowTickMarks(true);
-        widthSlider.setMajorTickUnit(5);
-        widthSlider.setBlockIncrement(1);
-        widthSlider.setSnapToTicks(true);
-        widthSlider.valueProperty().addListener((obs, oldVal, newVal) ->
-                widthLabel.setText("Width (Cols): " + newVal.intValue())
-        );
-
-        Label heightLabel = new Label("Height (Rows): 15");
-        Slider heightSlider = new Slider(5, 40, 15);
-        heightSlider.setShowTickLabels(true);
-        heightSlider.setShowTickMarks(true);
-        heightSlider.setMajorTickUnit(5);
-        heightSlider.setBlockIncrement(1);
-        heightSlider.setSnapToTicks(true);
-        heightSlider.valueProperty().addListener((obs, oldVal, newVal) ->
-                heightLabel.setText("Height (Rows): " + newVal.intValue())
+        // --- Single Grid Size Slider with Live Value Label & Integer Snapping ---
+        Label gridSizeLabel = new Label("Grid Size: 20");
+        Slider gridSizeSlider = new Slider(10, 50, 20);
+        gridSizeSlider.setShowTickLabels(true);
+        gridSizeSlider.setShowTickMarks(true);
+        gridSizeSlider.setMajorTickUnit(10);
+        gridSizeSlider.setBlockIncrement(1);
+        gridSizeSlider.setSnapToTicks(true);
+        gridSizeSlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                gridSizeLabel.setText("Grid Size: " + newVal.intValue())
         );
 
         Label braidLabel = new Label("Loop / Braid Factor (%): 20%");
@@ -148,8 +137,7 @@ public class MazeGeneratorApp extends Application {
                 new Label("Algorithm:"), algorithmCombo,
                 playModeToggle,
                 themeToggle,
-                widthLabel, widthSlider,
-                heightLabel, heightSlider,
+                gridSizeLabel, gridSizeSlider,
                 braidLabel, braidSlider,
                 generateBtn,
                 showSolutionToggle,
@@ -168,7 +156,6 @@ public class MazeGeneratorApp extends Application {
         Scene scene = new Scene(root, 880, 750);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
-        // Theme Toggle delegating to MazeCanvas (which passes to MazeRenderer)
         themeToggle.setOnAction(e -> {
             if (themeToggle.isSelected()) {
                 themeToggle.setText("Theme: Dark");
@@ -184,12 +171,11 @@ public class MazeGeneratorApp extends Application {
         });
 
         generateBtn.setOnAction(e -> {
-            int cols = (int) widthSlider.getValue();
-            int rows = (int) heightSlider.getValue();
+            int size = (int) gridSizeSlider.getValue();
             double braidFactor = braidSlider.getValue() / 100.0;
             String selectedAlgo = algorithmCombo.getValue();
 
-            startGenerationAnimation(cols, rows, braidFactor, selectedAlgo);
+            startGenerationAnimation(size, braidFactor, selectedAlgo);
         });
 
         playModeToggle.setOnAction(e -> {
@@ -244,10 +230,11 @@ public class MazeGeneratorApp extends Application {
         generateBtn.fire();
     }
 
-    private void startGenerationAnimation(int cols, int rows, double braidFactor, String algorithm) {
+    private void startGenerationAnimation(int size, double braidFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
-        grid = new MazeGrid(cols, rows);
+        // Initialize square grid bounds (size x size)
+        grid = new MazeGrid(size, size);
         mazeCanvas.setGrid(grid);
         mazeCanvas.setSolvedPath(null);
         updateStatistics(-1);
