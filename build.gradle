@@ -29,3 +29,17 @@ application {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
+dependencies {
+    // JavaFX dependencies (keep your existing ones)
+    implementation 'org.openjfx:javafx-controls:17'
+    implementation 'org.openjfx:javafx-graphics:17'
+
+    // JUnit 5 Testing Dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
