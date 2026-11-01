@@ -111,18 +111,33 @@ public class MazeGeneratorApp extends Application {
         HBox.setHgrow(themeToggle, Priority.ALWAYS);
         themeBox.setAlignment(Pos.CENTER_LEFT);
 
-        Label gridSizeLabel = new Label("Grid Size: 20");
-        Label gridInfo = createInfoIcon("Defines the uniform dimensions (N × N) of the maze grid.");
-        HBox gridHeaderBox = new HBox(5, gridSizeLabel, gridInfo);
+        // Independent Width & Height Controls for Rectangular Layouts
+        Label widthLabel = new Label("Grid Width (Cols): 20");
+        Label widthInfo = createInfoIcon("Defines the number of columns (width) of the maze grid.");
+        HBox widthHeaderBox = new HBox(5, widthLabel, widthInfo);
 
-        Slider gridSizeSlider = new Slider(10, 50, 20);
-        gridSizeSlider.setShowTickLabels(true);
-        gridSizeSlider.setShowTickMarks(true);
-        gridSizeSlider.setMajorTickUnit(10);
-        gridSizeSlider.setBlockIncrement(1);
-        gridSizeSlider.setSnapToTicks(true);
-        gridSizeSlider.valueProperty().addListener((obs, oldVal, newVal) ->
-                gridSizeLabel.setText("Grid Size: " + newVal.intValue())
+        Slider widthSlider = new Slider(10, 50, 20);
+        widthSlider.setShowTickLabels(true);
+        widthSlider.setShowTickMarks(true);
+        widthSlider.setMajorTickUnit(10);
+        widthSlider.setBlockIncrement(1);
+        widthSlider.setSnapToTicks(true);
+        widthSlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                widthLabel.setText("Grid Width (Cols): " + newVal.intValue())
+        );
+
+        Label heightLabel = new Label("Grid Height (Rows): 20");
+        Label heightInfo = createInfoIcon("Defines the number of rows (height) of the maze grid.");
+        HBox heightHeaderBox = new HBox(5, heightLabel, heightInfo);
+
+        Slider heightSlider = new Slider(10, 50, 20);
+        heightSlider.setShowTickLabels(true);
+        heightSlider.setShowTickMarks(true);
+        heightSlider.setMajorTickUnit(10);
+        heightSlider.setBlockIncrement(1);
+        heightSlider.setSnapToTicks(true);
+        heightSlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                heightLabel.setText("Grid Height (Rows): " + newVal.intValue())
         );
 
         Label speedLabel = new Label("Animation Delay (ms): 12");
@@ -241,7 +256,8 @@ public class MazeGeneratorApp extends Application {
                 playBox,
                 fogBox,
                 themeBox,
-                gridHeaderBox, gridSizeSlider,
+                widthHeaderBox, widthSlider,
+                heightHeaderBox, heightSlider,
                 speedHeaderBox, speedSlider,
                 complexityHeaderBox, complexitySlider,
                 fogRadiusHeaderBox, fogRadiusSlider,
@@ -277,12 +293,13 @@ public class MazeGeneratorApp extends Application {
         });
 
         generateBtn.setOnAction(e -> {
-            int size = (int) gridSizeSlider.getValue();
+            int width = (int) widthSlider.getValue();
+            int height = (int) heightSlider.getValue();
             double animDelay = speedSlider.getValue();
             double complexityFactor = complexitySlider.getValue() / 100.0;
             String selectedAlgo = algorithmCombo.getValue();
 
-            startGenerationAnimation(size, animDelay, complexityFactor, selectedAlgo);
+            startGenerationAnimation(width, height, animDelay, complexityFactor, selectedAlgo);
         });
 
         playModeToggle.setOnAction(e -> {
@@ -381,10 +398,16 @@ public class MazeGeneratorApp extends Application {
         return infoLabel;
     }
 
-    private void startGenerationAnimation(int size, double animDelay, double complexityFactor, String algorithm) {
+    private void startGenerationAnimation(int width, int height, double animDelay, double complexityFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
-        grid = new MazeGrid(size, size);
+        grid = new MazeGrid(width, height);
+
+        // Dynamically adjust canvas dimensions to match rectangular aspect ratios
+        double maxDimension = 600.0;
+        double cellDim = maxDimension / Math.max(width, height);
+        mazeCanvas.setWidth(width * cellDim);
+        mazeCanvas.setHeight(height * cellDim);
 
         for (int x = 0; x < grid.cols; x++) {
             for (int y = 0; y < grid.rows; y++) {
