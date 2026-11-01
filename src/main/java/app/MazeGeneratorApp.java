@@ -37,11 +37,14 @@ public class MazeGeneratorApp extends Application {
     private ComboBox<String> algorithmCombo;
     private ComboBox<String> solverCombo;
     private ToggleButton playModeToggle;
+    private ToggleButton fogOfWarToggle;
     private ToggleButton showSolutionToggle;
     private ToggleButton themeToggle;
 
     private final Player player = new Player();
     private boolean isPlayMode = false;
+    private boolean isFogOfWar = false;
+    private int fogRadius = 2;
 
     @Override
     public void start(Stage primaryStage) {
@@ -85,6 +88,23 @@ public class MazeGeneratorApp extends Application {
                 complexityLabel.setText("Complexity / Dead-End Density: " + newVal.intValue() + "%")
         );
 
+        // --- Fog of War Radius Slider ---
+        Label fogRadiusLabel = new Label("Fog Radius: 2 cells");
+        Slider fogRadiusSlider = new Slider(1, 5, 2);
+        fogRadiusSlider.setShowTickLabels(true);
+        fogRadiusSlider.setShowTickMarks(true);
+        fogRadiusSlider.setMajorTickUnit(1);
+        fogRadiusSlider.setBlockIncrement(1);
+        fogRadiusSlider.setSnapToTicks(true);
+        fogRadiusSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            fogRadius = newVal.intValue();
+            fogRadiusLabel.setText("Fog Radius: " + fogRadius + " cells");
+            if (isFogOfWar && grid != null) {
+                player.updateDiscovery(grid, isFogOfWar, fogRadius);
+                mazeCanvas.setFogOfWarActive(true, fogRadius);
+            }
+        });
+
         algorithmCombo = new ComboBox<>();
         algorithmCombo.getItems().addAll(
                 "Recursive Backtracker (DFS)",
@@ -114,6 +134,9 @@ public class MazeGeneratorApp extends Application {
 
         playModeToggle = new ToggleButton("Playable Mode: OFF");
         playModeToggle.setMaxWidth(Double.MAX_VALUE);
+
+        fogOfWarToggle = new ToggleButton("Fog of War: OFF");
+        fogOfWarToggle.setMaxWidth(Double.MAX_VALUE);
 
         themeToggle = new ToggleButton("Theme: Dark");
         themeToggle.setMaxWidth(Double.MAX_VALUE);
@@ -166,14 +189,16 @@ public class MazeGeneratorApp extends Application {
         statsLabel = new Label("Statistics:\nTotal Cells: -\nDead Ends: -\nPath Length: -");
         statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10;");
 
-        VBox controls = new VBox(8,
+        VBox controls = new VBox(6,
                 new Label("Gen Algorithm:"), algorithmCombo,
                 new Label("Solver Algorithm:"), solverCombo,
                 playModeToggle,
+                fogOfWarToggle,
                 themeToggle,
                 gridSizeLabel, gridSizeSlider,
                 speedLabel, speedSlider,
                 complexityLabel, complexitySlider,
+                fogRadiusLabel, fogRadiusSlider,
                 generateBtn,
                 showSolutionToggle,
                 exportBtn,
@@ -181,14 +206,14 @@ public class MazeGeneratorApp extends Application {
                 new Label("Maze Metrics"),
                 statsLabel
         );
-        controls.setPadding(new Insets(12));
-        controls.setPrefWidth(270);
+        controls.setPadding(new Insets(10));
+        controls.setPrefWidth(280);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
         root.setRight(controls);
 
-        Scene scene = new Scene(root, 900, 780);
+        Scene scene = new Scene(root, 910, 820);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         themeToggle.setOnAction(e -> {
@@ -224,11 +249,42 @@ public class MazeGeneratorApp extends Application {
                 }
                 playModeToggle.setText("Playable Mode: ON");
                 player.spawn(grid);
+                player.updateDiscovery(grid, isFogOfWar, fogRadius);
                 mazeCanvas.setPlayerCell(player.getCurrentCell());
+                mazeCanvas.setFogOfWarActive(isFogOfWar, fogRadius);
             } else {
                 playModeToggle.setText("Playable Mode: OFF");
                 player.reset();
                 mazeCanvas.setPlayerCell(null);
+                mazeCanvas.setFogOfWarActive(false, fogRadius);
+            }
+        });
+
+        fogOfWarToggle.setOnAction(e -> {
+            isFogOfWar = fogOfWarToggle.isSelected();
+            if (isFogOfWar) {
+                fogOfWarToggle.setText("Fog of War: ON");
+                if (grid != null) {
+                    for (int x = 0; x < grid.cols; x++) {
+                        for (int y = 0; y < grid.rows; y++) {
+                            grid.cells[x][y].discovered = false;
+                        }
+                    }
+                    if (isPlayMode) {
+                        player.updateDiscovery(grid, true, fogRadius);
+                    }
+                }
+                mazeCanvas.setFogOfWarActive(true, fogRadius);
+            } else {
+                fogOfWarToggle.setText("Fog of War: OFF");
+                if (grid != null) {
+                    for (int x = 0; x < grid.cols; x++) {
+                        for (int y = 0; y < grid.rows; y++) {
+                            grid.cells[x][y].discovered = true;
+                        }
+                    }
+                }
+                mazeCanvas.setFogOfWarActive(false, fogRadius);
             }
         });
 
@@ -247,7 +303,9 @@ public class MazeGeneratorApp extends Application {
             }
 
             if (player.move(dx, dy, wallIndex, grid)) {
+                player.updateDiscovery(grid, isFogOfWar, fogRadius);
                 mazeCanvas.setPlayerCell(player.getCurrentCell());
+                mazeCanvas.setFogOfWarActive(isFogOfWar, fogRadius);
 
                 if (player.getCurrentCell().isExit) {
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -261,6 +319,7 @@ public class MazeGeneratorApp extends Application {
                     playModeToggle.setText("Playable Mode: OFF");
                     player.reset();
                     mazeCanvas.setPlayerCell(null);
+                    mazeCanvas.setFogOfWarActive(false, fogRadius);
                 }
             }
         });
@@ -273,11 +332,20 @@ public class MazeGeneratorApp extends Application {
         if (animTimeline != null) animTimeline.stop();
 
         grid = new MazeGrid(size, size);
+
+        // Initialize cells discovery state based on current fog setting
+        for (int x = 0; x < grid.cols; x++) {
+            for (int y = 0; y < grid.rows; y++) {
+                grid.cells[x][y].discovered = !isFogOfWar;
+            }
+        }
+
         mazeCanvas.setGrid(grid);
         mazeCanvas.setSolvedPath(null);
         updateStatistics(-1);
         player.reset();
         mazeCanvas.setPlayerCell(null);
+        mazeCanvas.setFogOfWarActive(isFogOfWar, fogRadius);
 
         if (showSolutionToggle != null) {
             showSolutionToggle.setSelected(false);
@@ -305,7 +373,6 @@ public class MazeGeneratorApp extends Application {
                 createOpenings(grid);
                 mazeCanvas.setCurrentHead(null);
 
-                // If solution toggle was left active, refresh solution automatically when generation completes
                 if (showSolutionToggle.isSelected()) {
                     solveAndDisplayPath();
                 } else {
@@ -314,7 +381,9 @@ public class MazeGeneratorApp extends Application {
 
                 if (isPlayMode) {
                     player.spawn(grid);
+                    player.updateDiscovery(grid, isFogOfWar, fogRadius);
                     mazeCanvas.setPlayerCell(player.getCurrentCell());
+                    mazeCanvas.setFogOfWarActive(isFogOfWar, fogRadius);
                 }
             }
         });
@@ -394,6 +463,7 @@ public class MazeGeneratorApp extends Application {
         Cell entranceCell = grid.getCell(0, entranceY);
         entranceCell.walls[3] = false;
         entranceCell.isEntrance = true;
+        entranceCell.discovered = true;
 
         int exitY = rand.nextInt(grid.rows);
         Cell exitCell = grid.getCell(grid.cols - 1, exitY);

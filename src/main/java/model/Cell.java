@@ -4,6 +4,7 @@ public class Cell {
     public int x, y;
     public boolean[] walls = {true, true, true, true}; //top, right, bottom, left
     public boolean visited = false;
+    public boolean discovered = false; // Tracked for Fog of War exploration
     public boolean isEntrance = false;
     public boolean isExit = false;
 

@@ -12,6 +12,8 @@ public class MazeCanvas extends Canvas {
     private List<Cell> solvedPath;
     private Cell currentHead;
     private Cell playerCell;
+    private boolean fogOfWarActive = false;
+    private int fogRadius = 2;
     private final MazeRenderer renderer = new MazeRenderer();
 
     public MazeCanvas(double width, double height) {
@@ -39,6 +41,12 @@ public class MazeCanvas extends Canvas {
         draw();
     }
 
+    public void setFogOfWarActive(boolean active, int radius) {
+        this.fogOfWarActive = active;
+        this.fogRadius = radius;
+        draw();
+    }
+
     public void setDarkMode(boolean darkMode) {
         renderer.setDarkMode(darkMode);
         draw();
@@ -46,6 +54,6 @@ public class MazeCanvas extends Canvas {
 
     public void draw() {
         GraphicsContext gc = getGraphicsContext2D();
-        renderer.render(gc, getWidth(), getHeight(), grid, playerCell, solvedPath, currentHead);
+        renderer.render(gc, getWidth(), getHeight(), grid, playerCell, solvedPath, currentHead, fogOfWarActive, fogRadius);
     }
 }

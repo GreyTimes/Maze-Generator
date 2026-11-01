@@ -30,6 +30,25 @@ public class Player {
         return false;
     }
 
+    // Helper to reveal cells around the player based on fog radius
+    public void updateDiscovery(MazeGrid grid, boolean fogActive, int fogRadius) {
+        if (grid == null || currentCell == null) return;
+
+        for (int x = 0; x < grid.cols; x++) {
+            for (int y = 0; y < grid.rows; y++) {
+                Cell c = grid.cells[x][y];
+                if (!fogActive) {
+                    c.discovered = true;
+                } else {
+                    int dist = Math.abs(c.x - currentCell.x) + Math.abs(c.y - currentCell.y);
+                    if (dist <= fogRadius) {
+                        c.discovered = true;
+                    }
+                }
+            }
+        }
+    }
+
     public Cell getCurrentCell() { return currentCell; }
     public int getSteps() { return steps; }
     public void reset() {
