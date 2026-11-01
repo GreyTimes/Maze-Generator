@@ -18,6 +18,8 @@ import model.MazeGrid;
 import view.MazeCanvas;
 import generator.*;
 import solver.BfsMazeSolver;
+import solver.DfsMazeSolver;
+import solver.DijkstraMazeSolver;
 import game.Player;
 
 import javax.imageio.ImageIO;
@@ -33,6 +35,7 @@ public class MazeGeneratorApp extends Application {
     private Timeline animTimeline;
     private Label statsLabel;
     private ComboBox<String> algorithmCombo;
+    private ComboBox<String> solverCombo;
     private ToggleButton playModeToggle;
     private ToggleButton showSolutionToggle;
     private ToggleButton themeToggle;
@@ -73,10 +76,27 @@ public class MazeGeneratorApp extends Application {
         algorithmCombo.getItems().addAll(
                 "Recursive Backtracker (DFS)",
                 "Randomized Prim's",
-                "Randomized Kruskal's"
+                "Randomized Kruskal's",
+                "Aldous-Broder",
+                "Wilson's"
         );
         algorithmCombo.setValue("Recursive Backtracker (DFS)");
         algorithmCombo.setMaxWidth(Double.MAX_VALUE);
+
+        solverCombo = new ComboBox<>();
+        solverCombo.getItems().addAll(
+                "Breadth-First Search (BFS)",
+                "Depth-First Search (DFS)",
+                "Dijkstra's Algorithm"
+        );
+        solverCombo.setValue("Breadth-First Search (BFS)");
+        solverCombo.setMaxWidth(Double.MAX_VALUE);
+
+        solverCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (showSolutionToggle.isSelected() && grid != null) {
+                solveAndDisplayPath();
+            }
+        });
 
         playModeToggle = new ToggleButton("Playable Mode: OFF");
         playModeToggle.setMaxWidth(Double.MAX_VALUE);
@@ -91,15 +111,14 @@ public class MazeGeneratorApp extends Application {
         showSolutionToggle = new ToggleButton("Show Solution");
         showSolutionToggle.setMaxWidth(Double.MAX_VALUE);
         showSolutionToggle.setOnAction(e -> {
+            if (grid == null) {
+                showSolutionToggle.setSelected(false);
+                return;
+            }
+
             if (showSolutionToggle.isSelected()) {
                 showSolutionToggle.setText("Hide Solution");
-                List<Cell> path = BfsMazeSolver.solve(grid);
-                if (path != null) {
-                    mazeCanvas.setSolvedPath(path);
-                    updateStatistics(path.size());
-                } else {
-                    updateStatistics(-1);
-                }
+                solveAndDisplayPath();
             } else {
                 showSolutionToggle.setText("Show Solution");
                 if (mazeCanvas != null) {
@@ -134,7 +153,8 @@ public class MazeGeneratorApp extends Application {
         statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10;");
 
         VBox controls = new VBox(10,
-                new Label("Algorithm:"), algorithmCombo,
+                new Label("Gen Algorithm:"), algorithmCombo,
+                new Label("Solver Algorithm:"), solverCombo,
                 playModeToggle,
                 themeToggle,
                 gridSizeLabel, gridSizeSlider,
@@ -147,13 +167,13 @@ public class MazeGeneratorApp extends Application {
                 statsLabel
         );
         controls.setPadding(new Insets(15));
-        controls.setPrefWidth(250);
+        controls.setPrefWidth(260);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
         root.setRight(controls);
 
-        Scene scene = new Scene(root, 880, 750);
+        Scene scene = new Scene(root, 890, 750);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         themeToggle.setOnAction(e -> {
@@ -181,6 +201,11 @@ public class MazeGeneratorApp extends Application {
         playModeToggle.setOnAction(e -> {
             isPlayMode = playModeToggle.isSelected();
             if (isPlayMode) {
+                if (grid == null) {
+                    playModeToggle.setSelected(false);
+                    isPlayMode = false;
+                    return;
+                }
                 playModeToggle.setText("Playable Mode: ON");
                 player.spawn(grid);
                 mazeCanvas.setPlayerCell(player.getCurrentCell());
@@ -227,13 +252,31 @@ public class MazeGeneratorApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        generateBtn.fire();
+        // Removed generateBtn.fire() so it does not generate immediately on startup.
+    }
+
+    private void solveAndDisplayPath() {
+        if (grid == null) return;
+
+        String selectedSolver = solverCombo.getValue();
+        List<Cell> path = switch (selectedSolver) {
+            case "Depth-First Search (DFS)" -> DfsMazeSolver.solve(grid);
+            case "Dijkstra's Algorithm" -> DijkstraMazeSolver.solve(grid);
+            default -> BfsMazeSolver.solve(grid); // Breadth-First Search (BFS)
+        };
+
+        if (path != null) {
+            mazeCanvas.setSolvedPath(path);
+            updateStatistics(path.size());
+        } else {
+            mazeCanvas.setSolvedPath(null);
+            updateStatistics(-1);
+        }
     }
 
     private void startGenerationAnimation(int size, double braidFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
-        // Initialize square grid bounds (size x size)
         grid = new MazeGrid(size, size);
         mazeCanvas.setGrid(grid);
         mazeCanvas.setSolvedPath(null);
@@ -249,6 +292,8 @@ public class MazeGeneratorApp extends Application {
         MazeGenerator generator = switch (algorithm) {
             case "Randomized Prim's" -> new PrimsMazeGenerator();
             case "Randomized Kruskal's" -> new KruskalsMazeGenerator();
+            case "Aldous-Broder" -> new AldousBroderMazeGenerator();
+            case "Wilson's" -> new WilsonsMazeGenerator();
             default -> new DfsMazeGenerator();
         };
 
