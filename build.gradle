@@ -22,6 +22,12 @@ java {
     }
 }
 
+javadoc {
+    options.author = true
+    options.version = true
+    options.windowTitle = "Maze Generator & Solver API Documentation"
+}
+
 application {
     mainClass = 'app.MazeGeneratorApp'
 }
