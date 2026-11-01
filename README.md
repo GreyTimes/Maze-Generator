@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="./MazeTool.jpg" alt="Logo" width="300" align="center "/>
+</div>
+
 # JavaFX Maze Generator & Solver
 
 A modern, feature-rich desktop application built with **JavaFX** for generating, solving, and playing custom labyrinths. It features a sleek, cohesive interface with live theme switching, interactive gameplay, and multiple maze generation and pathfinding algorithms.
