@@ -49,7 +49,7 @@ public class MazeGeneratorApp extends Application {
 
         mazeCanvas = new MazeCanvas(600, 600);
 
-        // --- Single Grid Size Slider with Live Value Label & Integer Snapping ---
+        // --- Grid Size Slider ---
         Label gridSizeLabel = new Label("Grid Size: 20");
         Slider gridSizeSlider = new Slider(10, 50, 20);
         gridSizeSlider.setShowTickLabels(true);
@@ -61,15 +61,28 @@ public class MazeGeneratorApp extends Application {
                 gridSizeLabel.setText("Grid Size: " + newVal.intValue())
         );
 
-        Label braidLabel = new Label("Loop / Braid Factor (%): 20%");
-        Slider braidSlider = new Slider(0, 100, 20);
-        braidSlider.setShowTickLabels(true);
-        braidSlider.setShowTickMarks(true);
-        braidSlider.setMajorTickUnit(25);
-        braidSlider.setBlockIncrement(5);
-        braidSlider.setSnapToTicks(true);
-        braidSlider.valueProperty().addListener((obs, oldVal, newVal) ->
-                braidLabel.setText("Loop / Braid Factor (%): " + newVal.intValue() + "%")
+        // --- Animation Speed / Delay Slider ---
+        Label speedLabel = new Label("Animation Delay (ms): 12");
+        Slider speedSlider = new Slider(1, 50, 12);
+        speedSlider.setShowTickLabels(true);
+        speedSlider.setShowTickMarks(true);
+        speedSlider.setMajorTickUnit(10);
+        speedSlider.setBlockIncrement(1);
+        speedSlider.setSnapToTicks(true);
+        speedSlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                speedLabel.setText("Animation Delay (ms): " + newVal.intValue())
+        );
+
+        // --- Complexity / Dead-End Density Slider ---
+        Label complexityLabel = new Label("Complexity / Dead-End Density: 50%");
+        Slider complexitySlider = new Slider(0, 100, 50);
+        complexitySlider.setShowTickLabels(true);
+        complexitySlider.setShowTickMarks(true);
+        complexitySlider.setMajorTickUnit(25);
+        complexitySlider.setBlockIncrement(5);
+        complexitySlider.setSnapToTicks(true);
+        complexitySlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                complexityLabel.setText("Complexity / Dead-End Density: " + newVal.intValue() + "%")
         );
 
         algorithmCombo = new ComboBox<>();
@@ -92,6 +105,7 @@ public class MazeGeneratorApp extends Application {
         solverCombo.setValue("Breadth-First Search (BFS)");
         solverCombo.setMaxWidth(Double.MAX_VALUE);
 
+        // Instantly update solution when solver changes and solution is currently toggled on
         solverCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (showSolutionToggle.isSelected() && grid != null) {
                 solveAndDisplayPath();
@@ -152,13 +166,14 @@ public class MazeGeneratorApp extends Application {
         statsLabel = new Label("Statistics:\nTotal Cells: -\nDead Ends: -\nPath Length: -");
         statsLabel.setStyle("-fx-font-family: monospace; -fx-padding: 10;");
 
-        VBox controls = new VBox(10,
+        VBox controls = new VBox(8,
                 new Label("Gen Algorithm:"), algorithmCombo,
                 new Label("Solver Algorithm:"), solverCombo,
                 playModeToggle,
                 themeToggle,
                 gridSizeLabel, gridSizeSlider,
-                braidLabel, braidSlider,
+                speedLabel, speedSlider,
+                complexityLabel, complexitySlider,
                 generateBtn,
                 showSolutionToggle,
                 exportBtn,
@@ -166,14 +181,14 @@ public class MazeGeneratorApp extends Application {
                 new Label("Maze Metrics"),
                 statsLabel
         );
-        controls.setPadding(new Insets(15));
-        controls.setPrefWidth(260);
+        controls.setPadding(new Insets(12));
+        controls.setPrefWidth(270);
 
         BorderPane root = new BorderPane();
         root.setCenter(mazeCanvas);
         root.setRight(controls);
 
-        Scene scene = new Scene(root, 890, 750);
+        Scene scene = new Scene(root, 900, 780);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         themeToggle.setOnAction(e -> {
@@ -192,10 +207,11 @@ public class MazeGeneratorApp extends Application {
 
         generateBtn.setOnAction(e -> {
             int size = (int) gridSizeSlider.getValue();
-            double braidFactor = braidSlider.getValue() / 100.0;
+            double animDelay = speedSlider.getValue();
+            double complexityFactor = complexitySlider.getValue() / 100.0;
             String selectedAlgo = algorithmCombo.getValue();
 
-            startGenerationAnimation(size, braidFactor, selectedAlgo);
+            startGenerationAnimation(size, animDelay, complexityFactor, selectedAlgo);
         });
 
         playModeToggle.setOnAction(e -> {
@@ -251,30 +267,9 @@ public class MazeGeneratorApp extends Application {
 
         primaryStage.setScene(scene);
         primaryStage.show();
-
-        // Removed generateBtn.fire() so it does not generate immediately on startup.
     }
 
-    private void solveAndDisplayPath() {
-        if (grid == null) return;
-
-        String selectedSolver = solverCombo.getValue();
-        List<Cell> path = switch (selectedSolver) {
-            case "Depth-First Search (DFS)" -> DfsMazeSolver.solve(grid);
-            case "Dijkstra's Algorithm" -> DijkstraMazeSolver.solve(grid);
-            default -> BfsMazeSolver.solve(grid); // Breadth-First Search (BFS)
-        };
-
-        if (path != null) {
-            mazeCanvas.setSolvedPath(path);
-            updateStatistics(path.size());
-        } else {
-            mazeCanvas.setSolvedPath(null);
-            updateStatistics(-1);
-        }
-    }
-
-    private void startGenerationAnimation(int size, double braidFactor, String algorithm) {
+    private void startGenerationAnimation(int size, double animDelay, double complexityFactor, String algorithm) {
         if (animTimeline != null) animTimeline.stop();
 
         grid = new MazeGrid(size, size);
@@ -300,16 +295,22 @@ public class MazeGeneratorApp extends Application {
         generator.initialize(grid);
 
         animTimeline = new Timeline();
-        KeyFrame keyFrame = new KeyFrame(Duration.millis(12), event -> {
+        KeyFrame keyFrame = new KeyFrame(Duration.millis(animDelay), event -> {
             boolean running = generator.step();
             mazeCanvas.setCurrentHead(generator.getCurrentHead());
 
             if (!running) {
                 animTimeline.stop();
-                applyBraidFactor(grid, braidFactor);
+                applyComplexityFactor(grid, complexityFactor);
                 createOpenings(grid);
                 mazeCanvas.setCurrentHead(null);
-                updateStatistics(-1);
+
+                // If solution toggle was left active, refresh solution automatically when generation completes
+                if (showSolutionToggle.isSelected()) {
+                    solveAndDisplayPath();
+                } else {
+                    updateStatistics(-1);
+                }
 
                 if (isPlayMode) {
                     player.spawn(grid);
@@ -321,6 +322,25 @@ public class MazeGeneratorApp extends Application {
         animTimeline.getKeyFrames().add(keyFrame);
         animTimeline.setCycleCount(Timeline.INDEFINITE);
         animTimeline.play();
+    }
+
+    private void solveAndDisplayPath() {
+        if (grid == null) return;
+
+        String selectedSolver = solverCombo.getValue();
+        List<Cell> path = switch (selectedSolver) {
+            case "Depth-First Search (DFS)" -> DfsMazeSolver.solve(grid);
+            case "Dijkstra's Algorithm" -> DijkstraMazeSolver.solve(grid);
+            default -> BfsMazeSolver.solve(grid);
+        };
+
+        if (path != null && !path.isEmpty()) {
+            mazeCanvas.setSolvedPath(path);
+            updateStatistics(path.size());
+        } else {
+            mazeCanvas.setSolvedPath(null);
+            updateStatistics(-1);
+        }
     }
 
     private void updateStatistics(int pathLength) {
@@ -342,15 +362,17 @@ public class MazeGeneratorApp extends Application {
                 totalCells, deadEnds, pathStr));
     }
 
-    private void applyBraidFactor(MazeGrid grid, double braidFactor) {
+    private void applyComplexityFactor(MazeGrid grid, double complexityFactor) {
         Random rand = new Random();
+        double removalChance = 1.0 - complexityFactor;
+
         for (int x = 0; x < grid.cols; x++) {
             for (int y = 0; y < grid.rows; y++) {
                 Cell cell = grid.cells[x][y];
                 int wallCount = 0;
                 for (boolean w : cell.walls) if (w) wallCount++;
 
-                if (wallCount == 3 && rand.nextDouble() < braidFactor) {
+                if (wallCount == 3 && rand.nextDouble() < removalChance) {
                     List<Cell> adj = new java.util.ArrayList<>();
                     int[][] dirs = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
                     for (int[] d : dirs) {
